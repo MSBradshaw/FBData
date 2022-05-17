@@ -1,0 +1,11 @@
+*png
+*csv
+*.shp
+*pickle
+data/
+*Fig*
+.DS_Store
+*Plot*
+.idea/
+Counties/
+*json
