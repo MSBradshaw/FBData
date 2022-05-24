@@ -6,6 +6,8 @@ import typing
 import numpy as np
 from matplotlib.gridspec import GridSpec
 import argparse
+import sys
+print(sys.argv)
 
 def get_args():
     """
@@ -58,6 +60,12 @@ def get_args():
                         dest='figname',
                         required=True,
                         help='what to save the multi figure as')
+
+    parser.add_argument('--xrange',
+                        dest='xrange',
+                        nargs='+',
+                        default=None,
+                        help='two values separated by a space to use as x lim e.g. 0 10')
 
     return parser.parse_args()
 
@@ -131,13 +139,14 @@ outdir = args.outputdir
 figname = args.figname
 df = pickle.load(open(pickle_path, 'rb'))
 export_data = args.export_data
+xrange = args.xrange
+if xrange is not None:
+    xrange = [float(x) for x in xrange]
 
 # make sure the dir ends with a /
 if outdir[-1] != '/':
     outdir += '/'
-print(df.columns)
-print(starting_week_start_date)
-print(starting_week_end_date)
+
 starting_week_start_date_unix = to_unix_time(starting_week_start_date)
 starting_week_end_date_unix = to_unix_time(starting_week_end_date)
 
@@ -147,7 +156,6 @@ starting_week_cols = [x for x in df.columns if x in column_to_unix_map and
                       starting_week_start_date_unix <= column_to_unix_map[x] <= starting_week_end_date_unix]
 
 # starting week 3 day averages mapped by day of the week
-print(starting_week_cols)
 baseline_df = None
 for x in starting_week_cols:
     tmp = get_three_day_average(df, x.split('_')[2], column_to_unix_map)
@@ -193,24 +201,30 @@ hot_spot_df.to_csv(export_data, index=False)
 for i,col in enumerate(hot_spot_df.columns):
     if col in ['positions','ids','polygons']:
         continue
-    fig, ax = plt.subplots()
-    fig.set_size_inches(4, 4, forward=True)
+    my_dpi = 300
+    fig, ax = plt.subplots(figsize=(800 / my_dpi, 600 / my_dpi), dpi=my_dpi)
+    # fig.set_size_inches(4, 4, forward=True)
     plt.axhline(y=0.0, color='r', linestyle='-', alpha=.5)
     col_date = col.split('_')[0]
     day_of_week = get_day_of_week(col_date)
     ax.scatter(baseline_df[day_of_week + '_3_day_average'],
-               hot_spot_df[col], 2, c='blue', label='Hot-spot score', alpha=.3)
+               hot_spot_df[col], 2, c='blue', label='Hotspot score', alpha=.3)
     clear_ax(ax)
-    ax.set_ylabel('Hot-spot', fontsize=6)
+    ax.set_ylabel('Hotspot', fontsize=6)
     ax.set_xlabel('Baseline', fontsize=6)
+    xlim = ax.get_xlim()
+    if xlim[1] / (xlim[0] + 1) > 100:
+        ax.set_xscale('log')
+    if xrange is not None:
+        ax.set_xlim(xrange)
     ax.set_ylim((-5,5))
-    ax.set_xscale('log')
-
     plt.title(col_date, fontsize=6)
-    plt.savefig(outdir + col + '.png')
+    # plt.savefig(outdir + col + '.png')
+    plt.tight_layout()
+    plt.savefig(outdir + col.replace(' ', '') + '.png', dpi=my_dpi)
     # plt.show()
     plt.clf()
-
+quit()
 # do the plots but in a single multipanel plot
 # how large of a square does it need?
 plt_cols = [x for x in hot_spot_df.columns if x not in ['positions', 'ids', 'polygons']]
@@ -243,7 +257,6 @@ for x in range(dim1):
 for i, col in enumerate(plt_cols):
     x_cor = i % dim1
     y_cor = int(i / dim1)
-    print([x_cor, y_cor])
     axes[x_cor][y_cor].set_visible(True)
     axes[x_cor][y_cor].axhline(y=0.0, color='r', linestyle='-', alpha=.5)
     # plot it using the first week average as the baseline
@@ -253,8 +266,9 @@ for i, col in enumerate(plt_cols):
     axes[x_cor][y_cor].set_ylabel('Hotspot Score', fontsize=7)
     axes[x_cor][y_cor].set_xlabel('Baseline', fontsize=7)
     axes[x_cor][y_cor].set_xscale('log')
-
     axes[x_cor][y_cor].set_title(col, fontsize=8)
+    if xrange is not None:
+        axes[x_cor][y_cor].set_xlim(xrange)
 plt.savefig(figname)
 # plt.show()
 plt.clf()

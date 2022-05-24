@@ -9,3 +9,6 @@ data/
 .idea/
 Counties/
 *json
+*tsv
+!*.py
+!*.sh

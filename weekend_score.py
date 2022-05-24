@@ -6,6 +6,12 @@ import typing
 import numpy as np
 from matplotlib.gridspec import GridSpec
 import argparse
+import sys
+print(sys.argv)
+
+title_size = 8
+axis_size = 6
+tick_label_size = 4
 
 
 def get_args():
@@ -127,7 +133,6 @@ while current_unix < end_date_unix:
     current_unix += (60 * 60 * 24)
     if unix_to_day_of_week(current_unix) == 'Monday':
         mondays.append(current_unix)
-print(mondays)
 
 # get the average for each week broken up by weekdays and weekends
 weekend_scores = {}
@@ -156,20 +161,23 @@ ws_df.to_csv(export_data, index=False)
 for i, col in enumerate(ws_df.columns):
     if col in ['positions', 'ids', 'polygons']:
         continue
-    fig, ax = plt.subplots()
-    fig.set_size_inches(4, 4, forward=True)
+    my_dpi = 300
+    fig, ax = plt.subplots(figsize=(800 / my_dpi, 600 / my_dpi), dpi=my_dpi)
+    # fig.set_size_inches(4, 4, forward=True)
     plt.axhline(y=0.0, color='r', linestyle='-', alpha=.5)
     # plot it using the first week average as the baseline
     ax.scatter(week_avgs[unix_to_date(mondays[0])],
                ws_df[col], 2, c='blue', label='Slip score', alpha=.3)
     clear_ax(ax)
-    ax.set_ylabel('Weekend score', fontsize=6)
-    ax.set_xlabel('Baseline', fontsize=6)
+    ax.set_ylabel('Weekend score', fontsize=axis_size)
+    ax.set_xlabel('Baseline', fontsize=axis_size)
+    ax.tick_params(labelsize=tick_label_size)
     # ax.set_ylim((-5,5))
     ax.set_xscale('log')
 
-    plt.title(col, fontsize=6)
-    plt.savefig(outdir + col.replace(' ', '') + '.png')
+    plt.title(col, fontsize=title_size)
+    plt.tight_layout()
+    plt.savefig(outdir + col.replace(' ', '') + '.png',dpi=my_dpi)
     # plt.show()
     plt.clf()
 
@@ -204,7 +212,6 @@ if len(plt_cols) != num_plots:
 for i, col in enumerate(plt_cols):
     x_cor = i % dim1
     y_cor = int(i / dim1)
-    print([x_cor, y_cor])
     axes[x_cor][y_cor].axhline(y=0.0, color='r', linestyle='-', alpha=.5)
     # plot it using the first week average as the baseline
     axes[x_cor][y_cor].scatter(week_avgs[unix_to_date(mondays[0])],

@@ -6,7 +6,8 @@ import typing
 import numpy as np
 from matplotlib.gridspec import GridSpec
 import argparse
-
+import sys
+print(sys.argv)
 
 
 def get_args():
@@ -125,7 +126,6 @@ while current_unix < end_date_unix:
     current_unix += (60 * 60 * 24)
     if unix_to_day_of_week(current_unix) == 'Monday':
         mondays.append(current_unix)
-print(mondays)
 
 # get the average for each week
 week_avgs = {}
@@ -135,14 +135,14 @@ for i, mon in enumerate(mondays):
     week_cols = [x for x in cols_in_range if to_unix_time(x.split('_')[2]) >= mon and to_unix_time(x.split('_')[2]) <= mondays[i+1]]
 
     week_avgs[unix_to_date(mon)] = df[week_cols].sum(axis=1) / len(week_cols)
-print(week_avgs)
+
 # get the diff of the weeks and log_2 of that
 diffs = {}
 keys = list(week_avgs.keys())
 for i, week in enumerate(keys):
     if i == len(keys) - 1:
         continue
-    diffs[week + ' vs ' + keys[i+1]] = list(np.log2(week_avgs[week] / week_avgs[keys[i+1]]))
+    diffs[week + 'vs' + keys[i+1]] = list(np.log2(week_avgs[week] / week_avgs[keys[i+1]]))
 
 slip_df = pd.DataFrame(diffs)
 slip_df['positions'] = df['positions']
@@ -151,8 +151,10 @@ slip_df.to_csv(export_data, index=False)
 for i,col in enumerate(slip_df.columns):
     if col in ['positions','ids','polygons']:
         continue
-    fig, ax = plt.subplots()
-    fig.set_size_inches(4, 4, forward=True)
+    my_dpi = 300
+    fig, ax = plt.subplots(figsize=(800 / my_dpi, 600 / my_dpi), dpi=my_dpi)
+    # fig.set_size_inches(4, 4, forward=True)
+
     plt.axhline(y=0.0, color='r', linestyle='-', alpha=.5)
     # plot it using the first week average as the baseline
     ax.scatter(week_avgs[unix_to_date(mondays[0])],
@@ -164,7 +166,8 @@ for i,col in enumerate(slip_df.columns):
     ax.set_xscale('log')
 
     plt.title(col, fontsize=6)
-    plt.savefig(outdir + col.replace(' ','') + '.png')
+    plt.tight_layout()
+    plt.savefig(outdir + col.replace(' ', '') + '.png', dpi=my_dpi)
     # plt.show()
     plt.clf()
 
@@ -200,7 +203,6 @@ if len(plt_cols) != num_plots:
 for i, col in enumerate(plt_cols):
     x_cor = i % dim1
     y_cor = int(i / dim1)
-    print([x_cor, y_cor])
     axes[x_cor][y_cor].axhline(y=0.0, color='r', linestyle='-', alpha=.5)
     # plot it using the first week average as the baseline
     axes[x_cor][y_cor].scatter(week_avgs[unix_to_date(mondays[0])],
