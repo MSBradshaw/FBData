@@ -7,6 +7,7 @@ import numpy as np
 from matplotlib.gridspec import GridSpec
 import argparse
 import sys
+
 print(sys.argv)
 
 title_size = 8
@@ -52,6 +53,18 @@ def get_args():
     parser.add_argument('--export_data',
                         dest='export_data',
                         help='csv file to save computed data in')
+
+    parser.add_argument('--xrange',
+                        dest='xrange',
+                        nargs='+',
+                        default=None,
+                        help='two values separated by a space to use as x lim e.g. 0 10')
+
+    parser.add_argument('--yrange',
+                        dest='yrange',
+                        nargs='+',
+                        default=None,
+                        help='two values separated by a space to use as y lim e.g. 0 10')
 
     return parser.parse_args()
 
@@ -112,8 +125,13 @@ outdir = args.outputdir
 figname = args.figname
 df = pickle.load(open(pickle_path, 'rb'))
 export_data = args.export_data
+xrange = args.xrange
+if xrange is not None:
+    xrange = [float(x) for x in xrange]
 
-
+yrange = args.yrange
+if yrange is not None:
+    yrange = [float(x) for x in yrange]
 # make sure the dir ends with a /
 if outdir[-1] != '/':
     outdir += '/'
@@ -137,16 +155,21 @@ while current_unix < end_date_unix:
 # get the average for each week broken up by weekdays and weekends
 weekend_scores = {}
 sec_per_day = 24 * 60 * 60
+sec_in_4_days = sec_per_day * 4
 sec_in_5_days = sec_per_day * 5
+sec_in_6_days = sec_per_day * 6
 week_avgs = {}
 for i, mon in enumerate(mondays):
     if i == len(mondays) - 1:
         continue
     weekday_cols = [x for x in cols_in_range if
                     to_unix_time(x.split('_')[2]) >= mon and to_unix_time(x.split('_')[2]) <= mondays[
-                        i] + sec_in_5_days]
+                        i] + sec_in_4_days]
+    # weekend_cols = [x for x in cols_in_range if
+    #                 mondays[i] + sec_in_5_days >= mon and to_unix_time(x.split('_')[2]) <= mondays[i + 1]]
     weekend_cols = [x for x in cols_in_range if
-                    mondays[i] + sec_in_5_days >= mon and to_unix_time(x.split('_')[2]) <= mondays[i + 1]]
+                    to_unix_time(x.split('_')[2]) >= mondays[i] + sec_in_5_days and
+                    to_unix_time(x.split('_')[2]) <= mondays[i] + sec_in_6_days]
     weekday_avgs = df[weekday_cols].sum(axis=1) / len(weekday_cols)
     weekend_avgs = df[weekend_cols].sum(axis=1) / len(weekend_cols)
     weekend_scores[unix_to_date(mon)] = np.log2(weekday_avgs / weekend_avgs)
@@ -157,33 +180,43 @@ for i, mon in enumerate(mondays):
 ws_df = pd.DataFrame(weekend_scores)
 ws_df['positions'] = df['positions']
 ws_df.to_csv(export_data, index=False)
-
-for i, col in enumerate(ws_df.columns):
+plt_cols = [x for x in ws_df.columns if x not in ['positions', 'ids', 'polygons']]
+for i, col in enumerate(plt_cols):
+    # this plots the current week vs the previous week, thus needs to skip the first week
+    if i == 0:
+        continue
     if col in ['positions', 'ids', 'polygons']:
         continue
     my_dpi = 300
     fig, ax = plt.subplots(figsize=(800 / my_dpi, 600 / my_dpi), dpi=my_dpi)
     # fig.set_size_inches(4, 4, forward=True)
-    plt.axhline(y=0.0, color='r', linestyle='-', alpha=.5)
+    plt.axhline(y=0.0, color='black', linestyle='-', alpha=.5, linewidth=1)
+    plt.axvline(x=0.0, color='black', linestyle='-', alpha=.5, linewidth=1)
+    x_vals = np.array(ax.get_xlim())
+    intercept = 0
+    slope = 1
+    y_vals = intercept + slope * x_vals
+    ax.plot(x_vals, y_vals, '--', color='r', alpha=.5)
     # plot it using the first week average as the baseline
-    ax.scatter(week_avgs[unix_to_date(mondays[0])],
+    ax.scatter(ws_df[plt_cols[i - 1]],
                ws_df[col], 2, c='blue', label='Slip score', alpha=.3)
     clear_ax(ax)
-    ax.set_ylabel('Weekend score', fontsize=axis_size)
-    ax.set_xlabel('Baseline', fontsize=axis_size)
+    ax.set_ylabel(col, fontsize=6)
+    ax.set_xlabel(plt_cols[i - 1], fontsize=6)
+    if xrange is not None:
+        ax.set_xlim(xrange)
+    if yrange is not None:
+        ax.set_ylim(yrange)
     ax.tick_params(labelsize=tick_label_size)
-    # ax.set_ylim((-5,5))
-    ax.set_xscale('log')
-
-    plt.title(col, fontsize=title_size)
+    # plt.title(col, fontsize=title_size)
     plt.tight_layout()
-    plt.savefig(outdir + col.replace(' ', '') + '.png',dpi=my_dpi)
+    plt.savefig(outdir + col.replace(' ', '') + '.png', dpi=my_dpi)
     # plt.show()
     plt.clf()
 
 # do the plots but in a single multipanel plot
 # how large of a square does it need?
-plt_cols = [x for x in ws_df.columns if x not in ['positions', 'ids', 'polygons']]
+
 num_plots = len(plt_cols)
 if num_plots % 2 == 1:
     num_plots += 1
@@ -214,14 +247,21 @@ for i, col in enumerate(plt_cols):
     y_cor = int(i / dim1)
     axes[x_cor][y_cor].axhline(y=0.0, color='r', linestyle='-', alpha=.5)
     # plot it using the first week average as the baseline
-    axes[x_cor][y_cor].scatter(week_avgs[unix_to_date(mondays[0])],
-                               ws_df[col], 2, c='blue', label='Slip score', alpha=.3)
+    if i == 0:
+        axes[x_cor][y_cor].scatter(week_avgs[unix_to_date(mondays[0])],
+                                   ws_df[col], 2, c='blue', label='Slip score', alpha=.3)
+    else:
+        axes[x_cor][y_cor].scatter(ws_df[plt_cols[i - 1]],
+                                   ws_df[col], 2, c='blue', label='Slip score', alpha=.3)
     clear_ax(axes[x_cor][y_cor])
-    axes[x_cor][y_cor].set_ylabel('Weekend score', fontsize=6)
-    axes[x_cor][y_cor].set_xlabel('Baseline', fontsize=6)
-    axes[x_cor][y_cor].set_xscale('log')
+    axes[x_cor][y_cor].set_ylabel(col, fontsize=6)
+    if i == 0:
+        axes[x_cor][y_cor].set_xlabel('Baseline', fontsize=6)
+    else:
+        axes[x_cor][y_cor].set_xlabel(plt_cols[i - 1], fontsize=6)
+    # axes[x_cor][y_cor].set_xscale('log')
 
-    axes[x_cor][y_cor].set_title(col, fontsize=6)
+    # axes[x_cor][y_cor].set_title(col, fontsize=6)
 plt.savefig(figname)
 # plt.show()
 plt.clf()
@@ -229,4 +269,7 @@ plt.clf()
 
 Poland Example
 python weekend_score.py -i poland_animation.pickle -s 2022-01-01 -e 2022-03-28 -o WeekEndScorePlots --figname poland_week_end_score.png --export_data poland_weekend.csv
+
+
+python weekend_score.py -i co_covid_animation.pickle -s 2020-03-28 -e 2020-08-30 -o CovidWeekEndScorePlots --figname covid_week_end_score.png --export_data covid_weekend.csv
 """

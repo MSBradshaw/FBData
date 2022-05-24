@@ -49,6 +49,7 @@ def get_args():
                         dest='export_data',
                         help='csv file to save computed data in')
 
+
     return parser.parse_args()
 
 
@@ -163,7 +164,9 @@ for i,col in enumerate(slip_df.columns):
     ax.set_ylabel('Slip score', fontsize=6)
     ax.set_xlabel('Baseline', fontsize=6)
     # ax.set_ylim((-5,5))
-    ax.set_xscale('log')
+    xlim = ax.get_xlim()
+    if xlim[1] / (xlim[0] + 1) > 100:
+        ax.set_xscale('log')
 
     plt.title(col, fontsize=6)
     plt.tight_layout()

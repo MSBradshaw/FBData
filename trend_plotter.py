@@ -115,6 +115,7 @@ if len(cols_to_plot) > 13:
     tick_labs = [x if i % 7 == 0 else '' for i, x in enumerate(cols_to_plot)]
     ax.set_xticks(list(range(len(cols_to_plot))))
     ax.set_xticklabels(tick_labs)
+ax.axhline(y=0.0, color='black', linestyle='--', alpha=.5)
 plt.xticks(rotation=90)
 plt.title(args.title)
 plt.tight_layout()
@@ -157,6 +158,9 @@ low_poses = ['40.038129358358, -105.27923583984',
 
 low_poses = ['39.979224742356, -105.24078369141']
 
+low_poses = ['40.004475801858, -105.22979736328'] # covid slip
+poses = [] # covid slip
+
 fig, ax = plt.subplots()
 for i, row in sub.iterrows():
     color = 'grey'
@@ -175,24 +179,27 @@ if len(cols_to_plot) > 13:
         
         dow = get_day_of_week(date)
         x_offset =0.3
-        if dow in ['Saturday', 'Sunday']:
+
+        if dow in ['Saturday', 'Sunday'] and 'slip' not in args.input:
             ax.axvspan(i-x_offset, i+x_offset, alpha=weekend_alpha, color='grey')
-        else:
+        elif 'slip' not in args.input:
             ax.axvspan(i - x_offset, i + x_offset, alpha=week_day_alpha, color='grey')
 ax.axhline(y=0.0, color='black', linestyle='--', alpha=.5)
 plt.xticks(rotation=90)
 plt.title(args.title)
 plt.tight_layout()
-plt.savefig('SpecificTrendPlots/all.png')
+plt.savefig('SpecificTrendPlots/{}'.format(args.out))
 plt.clf()
 
 # print out positions with > 6 hotspot scores
 print('Maxes')
 for i, row in sub.iterrows():
-    if max(row) > 6:
+    if max(row) > .45:
         print(df.iloc[i, :]['positions'])
 
 print('Mins')
 for i, row in sub.iterrows():
-    if min(row) < -10:
+    if min(row) < -.3:
+        id = list(row).index(min(row))
         print(df.iloc[i, :]['positions'])
+        print(df.columns[id])
