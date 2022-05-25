@@ -12,3 +12,4 @@ Counties/
 *tsv
 !*.py
 !*.sh
+*txt

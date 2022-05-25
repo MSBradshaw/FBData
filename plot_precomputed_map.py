@@ -145,17 +145,26 @@ countries.columns = [x.lower() for x in countries.columns]
 
 # if the column is a date in format YYYY-MM-DD plot it
 print(df.columns)
+# if country == 'Poland':
+#     df = df[df['baseline'] > 10]
 for col in [x for x in df.columns if len(re.findall('\d\d\d\d-\d\d-\d\d',x)) > 0]:
     print(col)
+    print(sum(df[col].isna()))
+    # remove NAs
+    sub = df[~df[col].isna()]
+    # remove values really close to 0
+    # if country == 'Poland':
+    #     sub = sub[[ not(x < 0.01 and x > -0.01) for x in sub[col]]]
     my_dpi = 300
     fig, ax = plt.subplots(figsize=(800 / my_dpi, 600 / my_dpi), dpi=my_dpi)
-    scatter_size = 3
+    scatter_size = .1
+    border_size = 1
     color = 'lightgrey'
     if country == 'Boulder':
         scatter_size = 10
         color = 'black'
     countries[countries["name"] == country].plot(color="lightgrey", ax=ax, linewidth=1)
-    df.plot(x="lon", y="lat", kind="scatter",
+    sub.plot(x="lon", y="lat", kind="scatter",
                         c=col, colormap=cmap,
                         vmax=max(color_scale), vmin=min(color_scale),
                         ax=ax, s=scatter_size)
@@ -168,7 +177,7 @@ for col in [x for x in df.columns if len(re.findall('\d\d\d\d-\d\d-\d\d',x)) > 0
     cax.tick_params(labelsize=tick_label_size)
     if cities is not None:
         for idx, dat in cities.iterrows():
-            ax.scatter(dat.Lon, dat.Lat, s=1, color='black')
+            ax.scatter(dat.Lon, dat.Lat, s=border_size, color='black')
             ax.annotate(dat.City, (dat.Lon, dat.Lat), size=tick_label_size)
 
     if borders is not None:

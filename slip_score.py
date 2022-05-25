@@ -147,6 +147,7 @@ for i, week in enumerate(keys):
 
 slip_df = pd.DataFrame(diffs)
 slip_df['positions'] = df['positions']
+slip_df['baseline'] = week_avgs[unix_to_date(mondays[0])]
 slip_df.to_csv(export_data, index=False)
 
 for i,col in enumerate(slip_df.columns):
@@ -158,15 +159,18 @@ for i,col in enumerate(slip_df.columns):
 
     plt.axhline(y=0.0, color='r', linestyle='-', alpha=.5)
     # plot it using the first week average as the baseline
-    ax.scatter(week_avgs[unix_to_date(mondays[0])],
+    ax.scatter(slip_df['baseline'],
                slip_df[col], 2, c='blue', label='Slip score', alpha=.3)
     clear_ax(ax)
     ax.set_ylabel('Slip score', fontsize=6)
     ax.set_xlabel('Baseline', fontsize=6)
     # ax.set_ylim((-5,5))
     xlim = ax.get_xlim()
-    if xlim[1] / (xlim[0] + 1) > 100:
+    if (xlim[1] - xlim[0]) > 100:
+        print('log')
         ax.set_xscale('log')
+    else:
+        print('not log', str(xlim) )
 
     plt.title(col, fontsize=6)
     plt.tight_layout()
@@ -208,7 +212,7 @@ for i, col in enumerate(plt_cols):
     y_cor = int(i / dim1)
     axes[x_cor][y_cor].axhline(y=0.0, color='r', linestyle='-', alpha=.5)
     # plot it using the first week average as the baseline
-    axes[x_cor][y_cor].scatter(week_avgs[unix_to_date(mondays[0])],
+    axes[x_cor][y_cor].scatter(slip_df['baseline'],
                                slip_df[col], 2, c='blue', label='Slip score', alpha=.3)
     clear_ax(axes[x_cor][y_cor])
     axes[x_cor][y_cor].set_ylabel('Weekend score', fontsize=6)

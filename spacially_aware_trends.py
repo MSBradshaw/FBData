@@ -8,6 +8,7 @@ import pandas as pd
 import argparse
 import re
 import sys
+import geopy.distance
 
 print(sys.argv)
 title_size = 8
@@ -15,6 +16,7 @@ axis_size = 6
 tick_label_size = 4
 week_day_alpha = 0.1
 weekend_alpha = 0.3
+
 
 def get_day_of_week(_date: str):
     """
@@ -68,6 +70,34 @@ def get_args():
                         default=None,
                         help='what to name the output file')
 
+    parser.add_argument('--locs',
+                        dest='locs',
+                        default=None,
+                        help='tsv file with columns, [name, lat long], only tiles within a certain distance of these points will be plotted')
+
+    parser.add_argument('--distance',
+                        dest='distance',
+                        default=None,
+                        type=float,
+                        help='distance threshold in Km for tiles to be plotted. A tile must be within X km of a loc to be plotted')
+
+    parser.add_argument('--pmax',
+                        dest='pmax',
+                        default=None,
+                        type=float,
+                        help='print all tile locations with a hotspot score above this value')
+
+    parser.add_argument('--pmin',
+                        dest='pmin',
+                        default=None,
+                        type=float,
+                        help='print all tile locations with a hotspot score below this value')
+
+    parser.add_argument('--highlight',
+                        dest='highlight',
+                        default=None,
+                        help='list of lat long coordinates to highlight, needs to be the exact same as the lat lon in the input file')
+
     parser.add_argument('--title',
                         dest='title',
                         default='',
@@ -75,6 +105,39 @@ def get_args():
 
     return parser.parse_args()
 
+
+def calc_distance(_a, _b):
+    """
+
+    :param _a: lat and long coordinates
+    :param _b: lat and long coordinates
+    :return: distance in km of points a and b
+    """
+    return geopy.distance.distance(_a, _b).km
+
+
+def is_in_range(_a,_locs,_distance):
+    """
+
+    :param _a: lat and long coordinates
+    :param _locs: list of lat and long coordinates
+    :param _distance: distance threshold in km that _a must be from any _loc
+    :return:
+    """
+    for _b in _locs:
+        _d = calc_distance(_a, _b)
+        if _d <= _distance:
+            return True
+    return False
+
+def string_pos_to_list(_string):
+    """
+
+    :param _string: coordinates stored in a string formatted like [42.000, -150.0000]
+    :return:
+    """
+    _string = _string.replace(' ','').replace('[','').replace(']','')
+    return [float(x) for x in _string.split(',')]
 
 args = get_args()
 
@@ -85,10 +148,22 @@ df.columns = [re.match('\d\d\d\d-\d\d-\d\d', x).group() if re.match('\d\d\d\d-\d
 cols_to_plot = [x for x in df.columns if re.match('\d\d\d\d-\d\d-\d\d', x)]
 # sort the cols to make sure they are in the correct order
 cols_to_plot.sort()
-sub = df[cols_to_plot]
+
+locs = pd.read_csv(args.locs, sep='\t')
+locs.columns = ['Name', 'Lat', 'Long']
+locs_list = [[r["Lat"], r['Long']] for i, r in locs.iterrows()]
+
+highlights = []
+if args.highlight is not None:
+    highlights = [line.strip() for line in open(args.highlight,'r')]
+# cal distance between all tiles and these locs
+df['in_range'] = [is_in_range(string_pos_to_list(x), locs_list, args.distance) for x in df['positions']]
+sub = df[df['in_range']]
+sub = sub[cols_to_plot]
+sub.to_csv('trend_sub.cache.csv',index=False)
+print(sum(df['in_range']))
 
 fig, ax = plt.subplots()
-
 maxes = {}
 maxes_map = {}
 for i, col in enumerate(cols_to_plot):
@@ -108,9 +183,12 @@ for key in maxes.keys():
         print(key, str(maxes[key]))
 
 for i, row in sub.iterrows():
+    color = 'grey'
+    if df['positions'][i] in highlights:
+        color = 'red'
     # if none are na, plot the row
     if not row.isna().any():
-        ax.plot(row, color='grey', alpha=.1)
+        ax.plot(row, color=color, alpha=.1)
 
 remove_borders(ax)
 if len(cols_to_plot) > 13:
@@ -128,86 +206,19 @@ plt.title(args.title)
 plt.tight_layout()
 plt.savefig(args.out)
 plt.clf()
-print(cols_to_plot)
-quit()
-# for key in maxes.keys():
-#     fig, ax = plt.subplots()
-#     max_i = maxes_map[key]
-#     for i, row in sub.iterrows():
-#         color = 'blue'
-#         if max_i == i:
-#             color = 'red'
-#         ax.plot(row, color=color, alpha=.5)
-#     remove_borders(ax)
-#     if len(cols_to_plot) > 13:
-#         tick_labs = [x if i % 7 == 0 else '' for i, x in enumerate(cols_to_plot)]
-#         ax.set_xticks(list(range(len(cols_to_plot))))
-#         ax.set_xticklabels(tick_labs)
-#     plt.xticks(rotation=90)
-#     plt.title(args.title)
-#     plt.tight_layout()
-#     plt.savefig('SpecificTrendPlots/{}.png'.format(key))
-#     plt.clf()
 
-poses = ['40.017097830719, -105.26275634766',
-         '40.004475801858, -105.26824951172',
-         '40.017097830719, -105.28472900391',
-         '40.017097830719, -105.23529052734']
+if args.pmax is not None:
+    print('Maxes')
+    for i, r in sub.iterrows():
+        if r.isna().any():
+            continue
+        if sum([x > args.pmax for x in r]) > 0:
+            print(df['positions'][i])
 
-poses = ['40.017097830719, -105.23529052734']
-
-low_poses = ['40.038129358358, -105.27923583984',
-             '40.033923571574, -105.28472900391',
-             '39.979224742356, -105.24078369141',
-             '40.042334885757, -105.26275634766',
-             '39.979224742356, -105.24627685547',
-             '40.050745162371, -105.28472900391',
-             '39.987642799428, -105.23529052734']
-
-low_poses = ['39.979224742356, -105.24078369141']
-
-low_poses = ['40.004475801858, -105.22979736328'] # covid slip
-poses = [] # covid slip
-
-fig, ax = plt.subplots()
-for i, row in sub.iterrows():
-    color = 'grey'
-    this_pos = df.iloc[i, :]['positions']
-    if this_pos in poses:
-        color = 'red'
-    elif this_pos in low_poses:
-        color = 'blue'
-    ax.plot(row, color=color, alpha=.3)
-remove_borders(ax)
-if len(cols_to_plot) > 13:
-    tick_labs = [x if i % 2 == 0 else '' for i, x in enumerate(cols_to_plot)]
-    ax.set_xticks(list(range(len(cols_to_plot))))
-    ax.set_xticklabels(tick_labs)
-    for i,date in enumerate(cols_to_plot):
-        
-        dow = get_day_of_week(date)
-        x_offset =0.3
-
-        if dow in ['Saturday', 'Sunday'] and 'slip' not in args.input:
-            ax.axvspan(i-x_offset, i+x_offset, alpha=weekend_alpha, color='grey')
-        elif 'slip' not in args.input:
-            ax.axvspan(i - x_offset, i + x_offset, alpha=week_day_alpha, color='grey')
-ax.axhline(y=0.0, color='black', linestyle='--', alpha=.5)
-plt.xticks(rotation=90)
-plt.title(args.title)
-plt.tight_layout()
-plt.savefig('SpecificTrendPlots/{}'.format(args.out))
-plt.clf()
-
-# print out positions with > 6 hotspot scores
-print('Maxes')
-for i, row in sub.iterrows():
-    if max(row) > .45:
-        print(df.iloc[i, :]['positions'])
-
-print('Mins')
-for i, row in sub.iterrows():
-    if min(row) < -.3:
-        id = list(row).index(min(row))
-        print(df.iloc[i, :]['positions'])
-        print(df.columns[id])
+if args.pmin is not None:
+    print('Mins')
+    for i, r in sub.iterrows():
+        if r.isna().any():
+            continue
+        if sum([x < args.pmin for x in r]) > 0:
+            print(df['positions'][i])

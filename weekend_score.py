@@ -147,11 +147,17 @@ cols_in_range = [x for x in df.columns if x in column_to_unix_map and
 # get all weeks (mondays) in range
 current_unix = start_date_unix
 mondays = []
+print(unix_to_date(current_unix))
+print(unix_to_date(end_date_unix))
 while current_unix < end_date_unix:
     current_unix += (60 * 60 * 24)
     if unix_to_day_of_week(current_unix) == 'Monday':
+        print('\t', unix_to_date(current_unix))
+        print('\t', unix_to_day_of_week(current_unix))
         mondays.append(current_unix)
 
+print()
+print(mondays)
 # get the average for each week broken up by weekdays and weekends
 weekend_scores = {}
 sec_per_day = 24 * 60 * 60
@@ -160,16 +166,19 @@ sec_in_5_days = sec_per_day * 5
 sec_in_6_days = sec_per_day * 6
 week_avgs = {}
 for i, mon in enumerate(mondays):
+    print(unix_to_day_of_week(mon))
     if i == len(mondays) - 1:
         continue
     weekday_cols = [x for x in cols_in_range if
-                    to_unix_time(x.split('_')[2]) >= mon and to_unix_time(x.split('_')[2]) <= mondays[
-                        i] + sec_in_4_days]
+                    to_unix_time(x.split('_')[2]) >= mon and
+                    to_unix_time(x.split('_')[2]) <= mondays[i] + sec_in_4_days]
     # weekend_cols = [x for x in cols_in_range if
     #                 mondays[i] + sec_in_5_days >= mon and to_unix_time(x.split('_')[2]) <= mondays[i + 1]]
     weekend_cols = [x for x in cols_in_range if
                     to_unix_time(x.split('_')[2]) >= mondays[i] + sec_in_5_days and
                     to_unix_time(x.split('_')[2]) <= mondays[i] + sec_in_6_days]
+    print(weekday_cols)
+    print(weekday_cols)
     weekday_avgs = df[weekday_cols].sum(axis=1) / len(weekday_cols)
     weekend_avgs = df[weekend_cols].sum(axis=1) / len(weekend_cols)
     weekend_scores[unix_to_date(mon)] = np.log2(weekday_avgs / weekend_avgs)
