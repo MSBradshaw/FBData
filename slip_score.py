@@ -50,6 +50,7 @@ def get_args():
                         help='csv file to save computed data in')
 
 
+
     return parser.parse_args()
 
 
@@ -120,22 +121,25 @@ column_to_unix_map = {x: to_unix_time(x.split('_')[2]) for x in df.columns if 'z
 cols_in_range = [x for x in df.columns if x in column_to_unix_map and
                       start_date_unix <= column_to_unix_map[x] <= end_date_unix]
 
-# get all weeks (mondays) in range
+start_day_of_week = unix_to_day_of_week(start_date_unix)
+
+# get all weeks in range, each "week" is the time stamp of the starting day of that week.
+# the starting day is which everyday of the week the start day is
 current_unix = start_date_unix
-mondays = []
+start_days = []
 while current_unix < end_date_unix:
     current_unix += (60 * 60 * 24)
-    if unix_to_day_of_week(current_unix) == 'Monday':
-        mondays.append(current_unix)
+    if unix_to_day_of_week(current_unix) == start_day_of_week:
+        start_days.append(current_unix)
 
 # get the average for each week
 week_avgs = {}
-for i, mon in enumerate(mondays):
-    if i == len(mondays) - 1:
+for i, s_day in enumerate(start_days):
+    if i == len(start_days) - 1:
         continue
-    week_cols = [x for x in cols_in_range if to_unix_time(x.split('_')[2]) >= mon and to_unix_time(x.split('_')[2]) <= mondays[i+1]]
-
-    week_avgs[unix_to_date(mon)] = df[week_cols].sum(axis=1) / len(week_cols)
+    # get all dates in a 7 day range
+    week_cols = [x for x in cols_in_range if to_unix_time(x.split('_')[2]) >= s_day and to_unix_time(x.split('_')[2]) <= start_days[i+1]]
+    week_avgs[unix_to_date(s_day)] = df[week_cols].sum(axis=1) / len(week_cols)
 
 # get the diff of the weeks and log_2 of that
 diffs = {}
@@ -147,7 +151,7 @@ for i, week in enumerate(keys):
 
 slip_df = pd.DataFrame(diffs)
 slip_df['positions'] = df['positions']
-slip_df['baseline'] = week_avgs[unix_to_date(mondays[0])]
+slip_df['baseline'] = week_avgs[unix_to_date(start_days[0])]
 slip_df.to_csv(export_data, index=False)
 
 for i,col in enumerate(slip_df.columns):
