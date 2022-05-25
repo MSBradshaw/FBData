@@ -156,8 +156,11 @@ for col in [x for x in df.columns if len(re.findall('\d\d\d\d-\d\d-\d\d',x)) > 0
     # if country == 'Poland':
     #     sub = sub[[ not(x < 0.01 and x > -0.01) for x in sub[col]]]
     my_dpi = 300
-    fig, ax = plt.subplots(figsize=(800 / my_dpi, 600 / my_dpi), dpi=my_dpi)
-    scatter_size = .1
+    if country == 'Poland':
+        fig, ax = plt.subplots(figsize=(1600 / my_dpi, 1200 / my_dpi), dpi=my_dpi)
+    else:
+        fig, ax = plt.subplots(figsize=(800 / my_dpi, 600 / my_dpi), dpi=my_dpi)
+    scatter_size = 1
     border_size = 1
     color = 'lightgrey'
     if country == 'Boulder':

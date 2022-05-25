@@ -26,7 +26,7 @@ python slip_score.py -i poland_animation.pickle -s 2022-02-10 -e 2022-03-10 -o P
 
 python plot_precomputed_map.py -i poland_hotspot.csv --country Poland --outdir PolandHotSpotMap --colorscale -10 10 --cities cities.txt --roads europe-road.geojson --borders border_crossings.tsv
 python plot_precomputed_map.py -i poland_weekend.csv --country Poland --outdir PolandWeekendMap --colorscale -10 10 --cities cities.txt --roads europe-road.geojson --borders border_crossings.tsv
-python plot_precomputed_map.py -i poland_slip.csv --country Poland --outdir PolandSlipMap --colorscale -0.5 0.5 --cities cities.txt --roads europe-road.geojson --borders border_crossings.tsv --colormap bwr 
+python plot_precomputed_map.py -i poland_slip.csv --country Poland --outdir PolandSlipMap --colorscale -4 4 --cities cities.txt --roads europe-road.geojson --borders border_crossings.tsv --colormap bwr 
 
 python combine_plots.py -a PolandHotSpotMap -b PolandHotSpotPlots -o PolandHotSpotCombo -n 3
 python combine_plots.py -a PolandWeekendMap -b PolandWeekEndPlots -o PolandWeekEndCombo -n 3
