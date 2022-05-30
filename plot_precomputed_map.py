@@ -13,6 +13,15 @@ title_size = 8
 axis_size = 6
 tick_label_size = 4
 
+
+def format_col_name_for_slip_poland(string):
+    string = string.replace('2022-02-17','pre-invasion')
+    string = string.replace('2022-02-24', 'invasion')
+    string = string.replace('2022-03-03', 'post-invasion')
+    string = string.replace('vs', ' vs ')
+    return string
+
+
 def remove_borders(_ax: plt.Axes) -> None:
     """
     Remove all borders from the given matplotlib axes object
@@ -86,6 +95,12 @@ def get_args():
                         default='bwr',
                         help='matplotlib color map to use')
 
+    parser.add_argument('--baseline_cut_off',
+                        dest='baseline_cut_off',
+                        default=0,
+                        type=float,
+                        help='minimum allowed baseline value to be plotted')
+
     parser.add_argument('--colorscale',
                         dest='colorscale',
                         nargs='+',
@@ -135,6 +150,11 @@ else:
 df['lat'] = [float(x.split(',')[0]) for x in df['positions']]
 df['lon'] = [float(x.split(',')[1]) for x in df['positions']]
 
+if 'baseline' in df.columns:
+    df = df[df['baseline'] > args.baseline_cut_off]
+else:
+    print('Warning: no baseline in this file')
+
 # load the proper country data, global or US
 if country != 'Boulder':
     countries = gpd.read_file(gpd.datasets.get_path("naturalearth_lowres"))
@@ -152,49 +172,62 @@ for col in [x for x in df.columns if len(re.findall('\d\d\d\d-\d\d-\d\d',x)) > 0
     print(sum(df[col].isna()))
     # remove NAs
     sub = df[~df[col].isna()]
-    # remove values really close to 0
-    # if country == 'Poland':
-    #     sub = sub[[ not(x < 0.01 and x > -0.01) for x in sub[col]]]
+    # change figure size if it is Poland
     my_dpi = 300
     if country == 'Poland':
         fig, ax = plt.subplots(figsize=(1600 / my_dpi, 1200 / my_dpi), dpi=my_dpi)
+        title_size = 12
     else:
         fig, ax = plt.subplots(figsize=(800 / my_dpi, 600 / my_dpi), dpi=my_dpi)
+
     scatter_size = 1
-    border_size = 1
+    border_size = 2
     color = 'lightgrey'
+    city_label_size = 4
     if country == 'Boulder':
         scatter_size = 10
         color = 'black'
+    else:
+        tick_label_size = 8
+        city_label_size = 6
+
     countries[countries["name"] == country].plot(color="lightgrey", ax=ax, linewidth=1)
     sub.plot(x="lon", y="lat", kind="scatter",
-                        c=col, colormap=cmap,
-                        vmax=max(color_scale), vmin=min(color_scale),
-                        ax=ax, s=scatter_size)
+             c=col, colormap=cmap,
+             vmax=max(color_scale), vmin=min(color_scale),
+             ax=ax, s=scatter_size)
+
     if 'z_score' in col:
         col = col.split('_')[2] + ' ' + col.split('_')[3]
-    ax.set_title('{} {}'.format(country, col), size=title_size)
+
+    # change the tick label size on the color bar
     cax = fig.get_axes()[1]
-    # and we can modify it, i.e.:
     cax.set_ylabel('')
     cax.tick_params(labelsize=tick_label_size)
+
     if cities is not None:
         for idx, dat in cities.iterrows():
-            ax.scatter(dat.Lon, dat.Lat, s=border_size, color='black')
-            ax.annotate(dat.City, (dat.Lon, dat.Lat), size=tick_label_size)
+            ax.scatter(dat.Lon, dat.Lat, s=scatter_size, color='black')
+            if dat.City in ['Rybnik', 'Torun']:
+                dat.Lat = dat.Lat * 0.997
+            ax.annotate(dat.City, (dat.Lon, dat.Lat), size=city_label_size)
 
     if borders is not None:
         for idx, dat in borders.iterrows():
-            ax.scatter(dat.long, dat.lat, s=scatter_size, color='black')
-            # ax.annotate(dat.City, (dat.Lon, dat.Lat), size=6)
+            ax.scatter(dat.long, dat.lat, s=border_size, color='black', marker='s')
+
     if roads is not None:
         roads.plot(ax=ax, alpha=0.3, linewidth=1, color=color)
+
+    # change the x and y lim of the range if in Boulder
     if country == 'Boulder':
         pass
         x_lim = [39.957985, 40.075242]
         y_lim = [-105.300506, -105.154538]
         ax.set_ylim(x_lim)
         ax.set_xlim(y_lim)
+
+    ax.set_title('{}'.format(format_col_name_for_slip_poland(col).replace('_hot_spot', '')), size=title_size)
     remove_ticks(ax)
     remove_borders(ax)
     ax.set_ylabel('')

@@ -10,6 +10,14 @@ import sys
 print(sys.argv)
 
 
+def format_col_name_for_slip_poland(string):
+    string = string.replace('2022-02-17','pre-invasion')
+    string = string.replace('2022-02-24', 'invasion')
+    string = string.replace('2022-03-03', 'post-invasion')
+    string = string.replace('vs', ' vs ')
+    return string
+
+
 def get_args():
     """
     Gather the command line parameters, returns a namespace
@@ -48,6 +56,12 @@ def get_args():
     parser.add_argument('--export_data',
                         dest='export_data',
                         help='csv file to save computed data in')
+
+    parser.add_argument('--baseline_cut_off',
+                        dest='baseline_cut_off',
+                        default=0,
+                        type=float,
+                        help='minimum allowed baseline value to be plotted')
 
 
 
@@ -147,12 +161,17 @@ keys = list(week_avgs.keys())
 for i, week in enumerate(keys):
     if i == len(keys) - 1:
         continue
-    diffs[week + 'vs' + keys[i+1]] = list(np.log2(week_avgs[week] / week_avgs[keys[i+1]]))
+    diffs[week + 'vs' + keys[i+1]] = list(np.log2(week_avgs[keys[i+1]]/week_avgs[week]))
 
 slip_df = pd.DataFrame(diffs)
 slip_df['positions'] = df['positions']
 slip_df['baseline'] = week_avgs[unix_to_date(start_days[0])]
 slip_df.to_csv(export_data, index=False)
+
+if 'baseline' in slip_df.columns:
+    slip_df = slip_df[slip_df['baseline'] > args.baseline_cut_off]
+else:
+    print('Warning: no baseline in this file')
 
 for i,col in enumerate(slip_df.columns):
     if col in ['positions','ids','polygons']:
@@ -176,7 +195,8 @@ for i,col in enumerate(slip_df.columns):
     else:
         print('not log', str(xlim) )
 
-    plt.title(col, fontsize=6)
+    plt.title(format_col_name_for_slip_poland(col), fontsize=6)
+    plt.ylabel('Slip Score')
     plt.tight_layout()
     plt.savefig(outdir + col.replace(' ', '') + '.png', dpi=my_dpi)
     # plt.show()
@@ -223,7 +243,7 @@ for i, col in enumerate(plt_cols):
     axes[x_cor][y_cor].set_xlabel('Baseline', fontsize=6)
     axes[x_cor][y_cor].set_xscale('log')
 
-    axes[x_cor][y_cor].set_title(col, fontsize=6)
+    axes[x_cor][y_cor].set_title(format_col_name_for_slip_poland(col), fontsize=6)
 plt.savefig(figname)
 # plt.show()
 plt.clf()

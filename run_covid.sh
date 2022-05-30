@@ -31,8 +31,11 @@ python plot_precomputed_map.py -i covid_slip.csv --country Boulder --outdir Covi
 python combine_plots.py -a CovidHotSpotMap -b CovidHotSpotPlots -o CovidHotSpotScoreCombo -n 3
 python combine_plots.py -a CovidSuperHotSpotMap -b CovidHotSpotPlots -o CovidSuperHotSpotScoreCombo -n 3
 python combine_plots.py -a CovidSlipMap -b CovidSlipScorePlots -o CovidSlipScoreCombo -n 3
+python combine_plots.py -a CovidSlipMap -b CovidSlipScorePlots -o CovidSlipSingleCombo -n 1
 python combine_plots.py -a CovidWeekendMap -b CovidWeekEndScorePlots -o CovidWeekEndScoreCombo -n 3
 
-python trend_plotter.py -i covid_slip.csv --out covid_slip_trends.png --title "COVID Slip Score"
-python trend_plotter.py -i covid_hotspot.csv --out covid_hotspot_trends.png --title "COVID Hotspot Score"
-python trend_plotter.py -i covid_weekend.csv --out covid_weekend_trends.png --title "COVID Weekend Score"
+python trend_plotter.py -i covid_slip.csv --out covid_slip_trends.png --title "COVID Slip Score" --na_ok
+python trend_plotter.py -i covid_hotspot.csv --out covid_hotspot_trends.png --title "COVID Hotspot Score" --na_ok
+python trend_plotter.py -i covid_weekend.csv --out covid_weekend_trends.png --title "COVID Weekend Score" --na_ok
+
+python covid_cases_plot.py --cases boulder_covid_cases.tsv --hotspot covid_hotspot.csv --slip covid_slip.csv --weekend covid_weekend.csv --output four_panel_covid.png --start 2020-03-28 --end 2020-08-11

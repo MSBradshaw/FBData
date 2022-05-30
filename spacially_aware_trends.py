@@ -87,6 +87,12 @@ def get_args():
                         type=float,
                         help='print all tile locations with a hotspot score above this value')
 
+    parser.add_argument('--baseline_cut_off',
+                        dest='baseline_cut_off',
+                        default=0,
+                        type=float,
+                        help='minimum allowed baseline value to be plotted')
+
     parser.add_argument('--pmin',
                         dest='pmin',
                         default=None,
@@ -143,6 +149,11 @@ args = get_args()
 
 df = pd.read_csv(args.input)
 
+if 'baseline' in df.columns:
+    df = df[df['baseline'] > args.baseline_cut_off]
+else:
+    print('Warning: no baseline in this file')
+
 # rename the columns to just be dates
 df.columns = [re.match('\d\d\d\d-\d\d-\d\d', x).group() if re.match('\d\d\d\d-\d\d-\d\d', x) else x for x in df.columns]
 cols_to_plot = [x for x in df.columns if re.match('\d\d\d\d-\d\d-\d\d', x)]
@@ -157,10 +168,14 @@ highlights = []
 if args.highlight is not None:
     highlights = [line.strip() for line in open(args.highlight,'r')]
 # cal distance between all tiles and these locs
-df['in_range'] = [is_in_range(string_pos_to_list(x), locs_list, args.distance) for x in df['positions']]
+if args.distance != -1:
+    df['in_range'] = [is_in_range(string_pos_to_list(x), locs_list, args.distance) for x in df['positions']]
+else:
+    df['in_range'] = True
 sub = df[df['in_range']]
+sub_with_pos = df[df['in_range']]
 sub = sub[cols_to_plot]
-sub.to_csv('trend_sub.cache.csv',index=False)
+sub_with_pos.to_csv('trend_sub.cache.csv', index=False)
 print(sum(df['in_range']))
 
 fig, ax = plt.subplots()
@@ -207,6 +222,7 @@ plt.tight_layout()
 plt.savefig(args.out)
 plt.clf()
 
+max_is = []
 if args.pmax is not None:
     print('Maxes')
     for i, r in sub.iterrows():
@@ -214,7 +230,11 @@ if args.pmax is not None:
             continue
         if sum([x > args.pmax for x in r]) > 0:
             print(df['positions'][i])
+            # print(sub_with_pos.iloc[:, i])
+            max_is.append(i)
 
+
+double_is = []
 if args.pmin is not None:
     print('Mins')
     for i, r in sub.iterrows():
@@ -222,3 +242,9 @@ if args.pmin is not None:
             continue
         if sum([x < args.pmin for x in r]) > 0:
             print(df['positions'][i])
+            # print(sub_with_pos.iloc[:, i])
+            if i in max_is:
+                double_is.append(i)
+print('Double')
+for i in double_is:
+    print(sub_with_pos.iloc[:, i])

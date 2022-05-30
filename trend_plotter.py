@@ -73,6 +73,12 @@ def get_args():
                         default='',
                         help='What to use as the title of the plot')
 
+    parser.add_argument('--na_ok',
+                        dest='na_ok',
+                        action="store_true",
+                        default=False,
+                        help='What to use as the title of the plot')
+
     return parser.parse_args()
 
 
@@ -81,7 +87,7 @@ args = get_args()
 df = pd.read_csv(args.input)
 
 # rename the columns to just be dates
-df.columns = [re.match('\d\d\d\d-\d\d-\d\d', x).group() if re.match('\d\d\d\d-\d\d-\d\d', x) else x for x in df.columns]
+df.columns = [re.findall('\d\d\d\d-\d\d-\d\d', x)[-1] if re.match('\d\d\d\d-\d\d-\d\d', x) else x for x in df.columns]
 cols_to_plot = [x for x in df.columns if re.match('\d\d\d\d-\d\d-\d\d', x)]
 # sort the cols to make sure they are in the correct order
 cols_to_plot.sort()
@@ -109,7 +115,7 @@ for key in maxes.keys():
 
 for i, row in sub.iterrows():
     # if none are na, plot the row
-    if not row.isna().any():
+    if not row.isna().any() or args.na_ok:
         ax.plot(row, color='grey', alpha=.1)
 
 remove_borders(ax)
@@ -124,12 +130,18 @@ if 'poland' in args.input and 'hot' in args.input:
 ax.axhline(y=0.0, color='black', linestyle='--', alpha=.5)
 
 plt.xticks(rotation=90)
+if 'slip' in args.input:
+    plt.ylabel('Slip score')
+elif 'hotspot' in args.input:
+    plt.ylabel('Hotspot score')
+elif 'week' in args.input:
+    plt.ylabel('Weekend score')
 plt.title(args.title)
 plt.tight_layout()
 plt.savefig(args.out)
 plt.clf()
 print(cols_to_plot)
-quit()
+# quit()
 # for key in maxes.keys():
 #     fig, ax = plt.subplots()
 #     max_i = maxes_map[key]
@@ -156,18 +168,18 @@ poses = ['40.017097830719, -105.26275634766',
 
 poses = ['40.017097830719, -105.23529052734']
 
-low_poses = ['40.038129358358, -105.27923583984',
-             '40.033923571574, -105.28472900391',
-             '39.979224742356, -105.24078369141',
-             '40.042334885757, -105.26275634766',
-             '39.979224742356, -105.24627685547',
-             '40.050745162371, -105.28472900391',
-             '39.987642799428, -105.23529052734']
+# low_poses = ['40.038129358358, -105.27923583984',
+#              '40.033923571574, -105.28472900391',
+#              '39.979224742356, -105.24078369141',
+#              '40.042334885757, -105.26275634766',
+#              '39.979224742356, -105.24627685547',
+#              '40.050745162371, -105.28472900391',
+#              '39.987642799428, -105.23529052734']
 
 low_poses = ['39.979224742356, -105.24078369141']
 
-low_poses = ['40.004475801858, -105.22979736328'] # covid slip
-poses = [] # covid slip
+# low_poses = ['40.004475801858, -105.22979736328'] # covid slip
+# poses = [] # covid slip
 
 fig, ax = plt.subplots()
 for i, row in sub.iterrows():
@@ -180,20 +192,24 @@ for i, row in sub.iterrows():
     ax.plot(row, color=color, alpha=.3)
 remove_borders(ax)
 if len(cols_to_plot) > 13:
-    tick_labs = [x if i % 2 == 0 else '' for i, x in enumerate(cols_to_plot)]
+    tick_labs = [x if i % 7 == 0 else '' for i, x in enumerate(cols_to_plot)]
     ax.set_xticks(list(range(len(cols_to_plot))))
     ax.set_xticklabels(tick_labs)
     for i,date in enumerate(cols_to_plot):
-        
         dow = get_day_of_week(date)
         x_offset =0.3
-
         if dow in ['Saturday', 'Sunday'] and 'slip' not in args.input:
             ax.axvspan(i-x_offset, i+x_offset, alpha=weekend_alpha, color='grey')
         elif 'slip' not in args.input:
             ax.axvspan(i - x_offset, i + x_offset, alpha=week_day_alpha, color='grey')
 ax.axhline(y=0.0, color='black', linestyle='--', alpha=.5)
 plt.xticks(rotation=90)
+if 'slip' in args.input:
+    plt.ylabel('Slip score')
+elif 'hotspot' in args.input:
+    plt.ylabel('Hotspot score')
+elif 'week' in args.input:
+    plt.ylabel('Weekend score')
 plt.title(args.title)
 plt.tight_layout()
 plt.savefig('SpecificTrendPlots/{}'.format(args.out))
